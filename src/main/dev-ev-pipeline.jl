@@ -444,6 +444,8 @@ bev_phev_profile_weekday_df = build_bev_phev_profile_dataframe(
     BEV_PHEV_PROFILE_WEEKDAY_SHEET;
     day_type = "Weekday",
 )
+
+profiles = vcat(bev_phev_profile_weekend_df, bev_phev_profile_weekday_df)
 # ---------------------------------- #
 # EV numbers
 # ---------------------------------- #
@@ -464,6 +466,15 @@ phev_numbers_df = vehicle_numbers_dfs["PHEV_Numbers"]
 fcev_numbers_df = vehicle_numbers_dfs["FCEV_Numbers"]
 ice_numbers_df  = vehicle_numbers_dfs["ICE_Numbers"]
 
+ev_numbers_join_keys = [:scenario, :state, :type, :category, :year]
+ev_numbers = outerjoin(
+    bev_numbers_df,
+    phev_numbers_df;
+    on = ev_numbers_join_keys,
+)
+ev_numbers = outerjoin(ev_numbers, fcev_numbers_df; on = ev_numbers_join_keys)
+ev_numbers = outerjoin(ev_numbers, ice_numbers_df; on = ev_numbers_join_keys)
+
 # ---------------------------------- #
 # EV charging type share
 # ---------------------------------- #
@@ -477,8 +488,3 @@ bev_phev_charge_type_df = build_bev_phev_charge_type_dataframe(
 subregional_demand_allocation_df = melt_subregional_demand_allocation_dataframe(
     build_subregional_demand_allocation_dataframe(iasr_workbook_path),
 )
-
-# Filter subregional_demand_allocation_df for the relevant scenario and year
-scenario = 2
-target_year = "2030_31"
-_subregional_demand_allocation_df = filter(row -> row.scenario == scenario && row.year == target_year, subregional_demand_allocation_df)
