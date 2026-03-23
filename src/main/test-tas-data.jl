@@ -2,8 +2,8 @@ using CSV
 using DataFrames
 using Dates
 
-const DEFAULT_OUTPUT_ROOT = normpath(@__DIR__, "..", "..", "data", "PISP-outputs", "out-ref4006-poe10", "csv")
-const DEFAULT_PLOT_DIR    = normpath(@__DIR__, "..", "..", "data", "PISP-outputs", "out-ref4006-poe10", "plots")
+const DEFAULT_OUTPUT_ROOT = normpath("/Volumes/Seagate/CSIRO AR-PST Stage 5/PISP-outputs", "out-ref4006-poe10", "csv")
+const DEFAULT_PLOT_DIR    = normpath("/Volumes/Seagate/CSIRO AR-PST Stage 5/PISP-outputs", "out-ref4006-poe10", "plots")
 const DEFAULT_YEAR        = 2030
 const DEFAULT_SCENARIO    = 1
 
@@ -234,8 +234,8 @@ end
 fig = main(
     2030,
     [2],
-    [10];
-    start_dt=DateTime(2030, 6, 29),
-    end_dt=DateTime(2030, 7, 2, 23, 30),
+    [1,2,3,4,5,6,7,8,9,10,11,12];
+    start_dt=DateTime(2030, 01, 01),
+    end_dt=DateTime(2030, 10, 2, 23, 30),
 )
 display(fig)

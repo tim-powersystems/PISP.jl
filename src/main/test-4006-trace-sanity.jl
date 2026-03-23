@@ -2,9 +2,9 @@ using CSV
 using DataFrames
 using Dates
 
-const DEFAULT_TRACE_ROOT = normpath(@__DIR__, "..", "..", "data", "TEST-demand-AEMO", "demand_TAS_Step Change")
-const DEFAULT_OUTPUT_DIR = normpath(@__DIR__, "..", "..", "data", "TEST-demand-AEMO", "sanity-checks")
-const DEFAULT_PISP_OUTPUT_ROOT = normpath(@__DIR__, "..", "..", "data", "PISP-outputs", "out-ref4006-poe10", "csv")
+const DEFAULT_TRACE_ROOT = normpath("/Volumes/Seagate/CSIRO AR-PST Stage 5/PISP-downloads", "Traces", "demand_TAS_Step Change")
+const DEFAULT_OUTPUT_DIR = normpath("/Volumes/Seagate/CSIRO AR-PST Stage 5/PISP-outputs", "out-sanity-ref4006-poe10", "sanity-checks")
+const DEFAULT_PISP_OUTPUT_ROOT = normpath("/Volumes/Seagate/CSIRO AR-PST Stage 5/PISP-outputs", "out-sanity-ref4006-poe10", "csv")
 const DEFAULT_REGION = "TAS"
 const DEFAULT_SCENARIO_FILE = "STEP_CHANGE"
 const DEFAULT_POE = 10
@@ -157,6 +157,7 @@ function compare_long_window(df4006::DataFrame, df2015::DataFrame, df2011::DataF
         hourly_compare.diff_pisp_vs_expected_hourly =
             hourly_compare.pisp_demand_load_sched .- hourly_compare.expected_hourly_from_trace
         merged = leftjoin(merged, hourly_compare, on=:datetime)
+        sort!(merged, :datetime)
     end
 
     merged
@@ -188,45 +189,65 @@ function comparison_summary(trace_kind::AbstractString, df4006::DataFrame, df201
     DataFrame(rows)
 end
 
-function build_switch_plot(trace_kind::AbstractString, switch_slice::DataFrame; output_html::Union{Nothing,AbstractString}=nothing)
+function build_aemo_switch_plot(trace_kind::AbstractString, switch_slice::DataFrame; output_html::Union{Nothing,AbstractString}=nothing)
     HAS_PLOTLYJS || error(
         "PlotlyJS.jl is required for this script. Install it with " *
         "`julia --project -e 'using Pkg; Pkg.add(\"PlotlyJS\")'` and rerun."
     )
 
+    plot_df = unique(select(switch_slice, :datetime, :value_4006, :value_2015, :value_2011))
+    sort!(plot_df, :datetime)
+
     traces = [
         PlotlyJS.scatter(
-            x=switch_slice.datetime,
-            y=switch_slice.value_4006,
+            x=plot_df.datetime,
+            y=plot_df.value_4006,
             mode="lines",
-            name="4006",
+            name="AEMO 4006",
             line=PlotlyJS.attr(color="#1f77b4", width=2.0),
-            hovertemplate="4006<br>%{x|%Y-%m-%d %H:%M}<br>%{y:.4f}<extra></extra>",
+            hovertemplate="AEMO 4006<br>%{x|%Y-%m-%d %H:%M}<br>%{y:.4f}<extra></extra>",
         ),
         PlotlyJS.scatter(
-            x=switch_slice.datetime,
-            y=switch_slice.value_2015,
+            x=plot_df.datetime,
+            y=plot_df.value_2015,
             mode="lines",
-            name="2015",
+            name="AEMO 2015",
             line=PlotlyJS.attr(color="#d62728", width=1.5),
-            hovertemplate="2015<br>%{x|%Y-%m-%d %H:%M}<br>%{y:.4f}<extra></extra>",
+            hovertemplate="AEMO 2015<br>%{x|%Y-%m-%d %H:%M}<br>%{y:.4f}<extra></extra>",
         ),
         PlotlyJS.scatter(
-            x=switch_slice.datetime,
-            y=switch_slice.value_2011,
+            x=plot_df.datetime,
+            y=plot_df.value_2011,
             mode="lines",
-            name="2011",
+            name="AEMO 2011",
             line=PlotlyJS.attr(color="#2ca02c", width=1.5),
-            hovertemplate="2011<br>%{x|%Y-%m-%d %H:%M}<br>%{y:.4f}<extra></extra>",
+            hovertemplate="AEMO 2011<br>%{x|%Y-%m-%d %H:%M}<br>%{y:.4f}<extra></extra>",
         ),
     ]
+
+    if hasproperty(switch_slice, :pisp_demand_load_sched)
+        pisp_df = filter(row -> !ismissing(row.pisp_demand_load_sched), switch_slice)
+        if !isempty(pisp_df)
+            pisp_df = unique(select(pisp_df, :datetime, :pisp_demand_load_sched))
+            sort!(pisp_df, :datetime)
+            push!(traces, PlotlyJS.scatter(
+                x=pisp_df.datetime,
+                y=pisp_df.pisp_demand_load_sched,
+                mode="lines+markers",
+                name="PISP Demand_load_sched",
+                line=PlotlyJS.attr(color="#ff7f0e", width=1.8),
+                marker=PlotlyJS.attr(size=6),
+                hovertemplate="PISP Demand_load_sched<br>%{x|%Y-%m-%d %H:%M}<br>%{y:.4f}<extra></extra>",
+            ))
+        end
+    end
 
     layout = PlotlyJS.Layout(
         template="plotly_white",
         width=1400,
         height=700,
         hovermode="x unified",
-        title_text="TAS STEP_CHANGE $(trace_kind) around 4006 switch: 2015 -> 2011",
+        title_text="AEMO trace check: TAS STEP_CHANGE $(trace_kind) around 4006 switch",
         xaxis=PlotlyJS.attr(title="Datetime"),
         yaxis=PlotlyJS.attr(title="Value"),
         legend=PlotlyJS.attr(orientation="h", x=0.0, y=1.05, xanchor="left", yanchor="bottom"),
@@ -264,6 +285,81 @@ function build_switch_plot(trace_kind::AbstractString, switch_slice::DataFrame; 
     fig
 end
 
+function build_pisp_switch_plot(trace_kind::AbstractString, switch_slice::DataFrame; output_html::Union{Nothing,AbstractString}=nothing)
+    HAS_PLOTLYJS || error(
+        "PlotlyJS.jl is required for this script. Install it with " *
+        "`julia --project -e 'using Pkg; Pkg.add(\"PlotlyJS\")'` and rerun."
+    )
+
+    hasproperty(switch_slice, :pisp_demand_load_sched) || return nothing
+    hourly_slice = filter(row -> !ismissing(row.expected_hourly_from_trace) || !ismissing(row.pisp_demand_load_sched), switch_slice)
+    isempty(hourly_slice) && return nothing
+    hourly_slice = unique(select(hourly_slice, :datetime, :expected_hourly_from_trace, :pisp_demand_load_sched, :diff_pisp_vs_expected_hourly))
+    sort!(hourly_slice, :datetime)
+
+    traces = [
+        PlotlyJS.scatter(
+            x=hourly_slice.datetime,
+            y=hourly_slice.expected_hourly_from_trace,
+            mode="lines",
+            name="Expected hourly from AEMO 4006",
+            line=PlotlyJS.attr(color="#1f77b4", width=2.0),
+            hovertemplate="Expected hourly from AEMO 4006<br>%{x|%Y-%m-%d %H:%M}<br>%{y:.4f}<extra></extra>",
+        ),
+        PlotlyJS.scatter(
+            x=hourly_slice.datetime,
+            y=hourly_slice.pisp_demand_load_sched,
+            mode="lines+markers",
+            name="PISP Demand_load_sched",
+            line=PlotlyJS.attr(color="#ff7f0e", width=1.8),
+            marker=PlotlyJS.attr(size=6),
+            hovertemplate="PISP Demand_load_sched<br>%{x|%Y-%m-%d %H:%M}<br>%{y:.4f}<extra></extra>",
+        ),
+    ]
+
+    layout = PlotlyJS.Layout(
+        template="plotly_white",
+        width=1400,
+        height=650,
+        hovermode="x unified",
+        title_text="PISP hourly check: TAS STEP_CHANGE $(trace_kind) against AEMO-derived hourly expectation",
+        xaxis=PlotlyJS.attr(title="Datetime"),
+        yaxis=PlotlyJS.attr(title="Hourly value"),
+        legend=PlotlyJS.attr(orientation="h", x=0.0, y=1.05, xanchor="left", yanchor="bottom"),
+        shapes=[
+            PlotlyJS.attr(
+                type="line",
+                x0=DateTime(2030, 7, 1),
+                x1=DateTime(2030, 7, 1),
+                y0=0,
+                y1=1,
+                xref="x",
+                yref="paper",
+                line=PlotlyJS.attr(color="#444444", width=1, dash="dash"),
+            ),
+        ],
+        annotations=[
+            PlotlyJS.attr(
+                x=DateTime(2030, 7, 1),
+                y=1.02,
+                xref="x",
+                yref="paper",
+                text="switch to 2011",
+                showarrow=false,
+            ),
+        ],
+    )
+
+    fig = PlotlyJS.plot(traces, layout)
+    if output_html !== nothing
+        mkpath(dirname(output_html))
+        PlotlyJS.savefig(fig, output_html)
+        println("PISP switch-window plot written to $(output_html)")
+    end
+
+    fig
+end
+
 function write_slice_csvs(trace_kind::AbstractString, df4006::DataFrame, df2015::DataFrame, df2011::DataFrame;
         output_dir::AbstractString=DEFAULT_OUTPUT_DIR, pisp_hourly::Union{Nothing,DataFrame}=nothing)
     mkpath(output_dir)
@@ -295,8 +391,13 @@ function run_trace_sanity(trace_kind::AbstractString; root::AbstractString=DEFAU
     switch_slice_path = joinpath(output_dir, "$(trace_kind)_switch_window.csv")
     CSV.write(switch_slice_path, switch_slice)
 
-    plot_path = joinpath(output_dir, "$(trace_kind)_switch_window.html")
-    fig = build_switch_plot(trace_kind, switch_slice; output_html=plot_path)
+    aemo_plot_path = joinpath(output_dir, "$(trace_kind)_switch_window_aemo.html")
+    aemo_plot = build_aemo_switch_plot(trace_kind, switch_slice; output_html=aemo_plot_path)
+
+    pisp_plot_path = trace_kind == "OPSO_MODELLING_PVLITE" ?
+        joinpath(output_dir, "$(trace_kind)_switch_window_pisp.html") : nothing
+    pisp_plot = trace_kind == "OPSO_MODELLING_PVLITE" ?
+        build_pisp_switch_plot(trace_kind, switch_slice; output_html=pisp_plot_path) : nothing
 
     println(summary_df)
     return (
@@ -306,8 +407,12 @@ function run_trace_sanity(trace_kind::AbstractString; root::AbstractString=DEFAU
         weekly_slice_paths = weekly_slice_paths,
         switch_slice = switch_slice,
         switch_slice_path = switch_slice_path,
-        plot = fig,
-        plot_path = plot_path,
+        plot = aemo_plot,
+        plot_path = aemo_plot_path,
+        aemo_plot = aemo_plot,
+        aemo_plot_path = aemo_plot_path,
+        pisp_plot = pisp_plot,
+        pisp_plot_path = pisp_plot_path,
     )
 end
 
@@ -322,7 +427,10 @@ function run_and_display(; trace_kinds::AbstractVector{<:AbstractString}=collect
         output_dir::AbstractString=DEFAULT_OUTPUT_DIR)
     results = main(; trace_kinds=trace_kinds, root=root, output_dir=output_dir)
     for kind in trace_kinds
-        display(results[String(kind)].plot)
+        display(results[String(kind)].aemo_plot)
+        if !isnothing(results[String(kind)].pisp_plot)
+            display(results[String(kind)].pisp_plot)
+        end
     end
     results
 end
