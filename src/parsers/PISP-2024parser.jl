@@ -1855,13 +1855,13 @@ function gen_inflow_sched(ts::PISPtimeStatic, tv::PISPtimeVarying, tc::PISPtimeC
 
             # Pro-rate inflows among generators based on their capacity share
             for row in eachrow(gen_entries)
-                scaled = base_inflows .* row.partial
+                scaled = base_inflows .* row.partial ./ row.n
                 append!(gen_inflow_dummy, DataFrame(
                     id       = base_ids,
                     id_gen   = fill(row.id_gen, n_hours),
                     scenario = fill(sce_label, n_hours),
                     date     = base_dates,
-                    value    = scaled, # TODO Scale by number of units to get per-unit inflow (assuming identical units in each generator entry)
+                    value    = scaled,
                 ))
             end
         end
@@ -1896,13 +1896,13 @@ function gen_inflow_sched(ts::PISPtimeStatic, tv::PISPtimeVarying, tc::PISPtimeC
 
                 for row in eachrow(cns_gens)
                     # Pro-rate energy limits among generators based on their capacity share
-                    scaled_limits = df_energy_hourly.HourlyLimit .* row.partial
+                    scaled_limits = df_energy_hourly.HourlyLimit .* row.partial ./ row.n
                     append!(gen_inflow_dummy, DataFrame(
                         id       = collect(1:nrow(df_energy_hourly)),
                         id_gen   = fill(row.id_gen, nrow(df_energy_hourly)),
                         scenario = fill(sce_label, nrow(df_energy_hourly)),
                         date     = df_energy_hourly.date,
-                        value    = scaled_limits, # TODO Scale by number of units to get per-unit inflow (assuming identical units in each generator entry)
+                        value    = scaled_limits,
                     ))
                 end
             end
@@ -1941,9 +1941,11 @@ function gen_inflow_sched(ts::PISPtimeStatic, tv::PISPtimeVarying, tc::PISPtimeC
             hourly_dates = hourly_snowy.date
             hourly_values = hourly_snowy.value
 
+            gen_n_lookup = Dict(row.id_gen => row.n for row in eachrow(hydro_gen))
+
             for group in values(PISP.SNOWY_HYDRO_GROUPS)
                 # Generators associated to the Snowy group
-                group_entries = filter(row -> row.id_gen in group, gen_entries) 
+                group_entries = filter(row -> row.id_gen in group, gen_entries)
                 share_group   = sum(group_entries.partial) # Generation share of the group (%)
 
                 for id_gen in group # Generators forming the Snowy group
@@ -1951,14 +1953,15 @@ function gen_inflow_sched(ts::PISPtimeStatic, tv::PISPtimeVarying, tc::PISPtimeC
                     share_dam = get(PISP.DAM_SHARES, hydro_dam, 0.0)
                     share_gen = share_group * share_dam
                     # println("Scenario: ", sce_label, " Gen: ", id_gen, " Share gen: ", share_gen)
-                    scaled_inflows = hourly_values .* share_gen * 1000.0 # Scale to MW (same as original)
+                    n_units = get(gen_n_lookup, id_gen, 1)
+                    scaled_inflows = hourly_values .* share_gen * 1000.0 ./ n_units
 
                     append!(gen_inflow_dummy, DataFrame(
                         id       = hourly_ids,
                         id_gen   = fill(id_gen, n_hourly),
                         scenario = fill(sce_label, n_hourly),
                         date     = hourly_dates,
-                        value    = scaled_inflows, # TODO Scale by number of units to get per-unit inflow (assuming identical units in each generator entry)
+                        value    = scaled_inflows,
                     ))
                 end
             end
@@ -2015,19 +2018,20 @@ function ess_inflow_sched(ts::PISPtimeStatic, tv::PISPtimeVarying, tc::PISPtimeC
     tumut_partial = tumut_entry.partial
 
     t3_total_share = t3_share * tumut_partial[1]
+    tumut_gen_n    = gen[gen.id_gen .== tumut_gen, :n][1]
 
     hourly_values = hourly_snowy.value
     n_hourly      = nrow(hourly_snowy)
     hourly_ids    = collect(1:n_hourly)
     for scenario in keys(PISP.SCE)
         sce_label      = PISP.SCE[scenario]      # Scenario number
-        scaled_inflows = hourly_values .* t3_total_share * 1000.0 # Scale to MW (same as original)
+        scaled_inflows = hourly_values .* t3_total_share * 1000.0 ./ tumut_gen_n
         append!(ess_inflow_dummy, DataFrame(
             id       = hourly_ids,
             id_ess   = fill(id_tumut, n_hourly),
             scenario = fill(sce_label, n_hourly),
             date     = hourly_snowy.date,
-            value    = scaled_inflows, # TODO Scale by number of units to get per-unit inflow (assuming identical units in each generator entry)
+            value    = scaled_inflows,
         ))
     end
 
