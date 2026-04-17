@@ -79,18 +79,18 @@ MOD_ESS_INFLOW            = OrderedDict(
 # ================================ #
 # LINE SCHEDULES
 # ================================ #
-MOD_LINE_TMAX           = OrderedDict(  
-                                        "id"                => "INTEGER PRIMARY KEY", 
+MOD_LINE_FWCAP          = OrderedDict(
+                                        "id"                => "INTEGER PRIMARY KEY",
                                         "id_lin"            => "INTEGER REFERENCES Line (id_lin)",
-                                        "scenario"          => "INTEGER NOT NULL", 
+                                        "scenario"          => "INTEGER NOT NULL",
                                         "date"              => "DATETIME NOT NULL",
                                         "value"             => "REAL NOT NULL",
                                     )
 
-MOD_LINE_TMIN           = OrderedDict(  
-                                        "id"                => "INTEGER PRIMARY KEY", 
+MOD_LINE_RVCAP          = OrderedDict(
+                                        "id"                => "INTEGER PRIMARY KEY",
                                         "id_lin"            => "INTEGER REFERENCES Line (id_lin)",
-                                        "scenario"          => "INTEGER NOT NULL", 
+                                        "scenario"          => "INTEGER NOT NULL",
                                         "date"              => "DATETIME NOT NULL",
                                         "value"             => "REAL NOT NULL"
                                     )
@@ -110,6 +110,6 @@ TABLES_POWERSYSTEM_SCH = OrderedDict(
                                         "ESS_lmax_sched"            => MOD_ESS_LMAX,
                                         "ESS_emax_sched"            => MOD_ESS_EMAX,
                                         "ESS_n_sched"               => MOD_ESS_N,
-                                        "Line_tmax_sched"           => MOD_LINE_TMAX,
-                                        "Line_tmin_sched"           => MOD_LINE_TMIN,
+                                        "Line_fwcap_sched"          => MOD_LINE_FWCAP,
+                                        "Line_rvcap_sched"          => MOD_LINE_RVCAP,
 )

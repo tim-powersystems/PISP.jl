@@ -15,8 +15,8 @@ alt_names = Dict(
         :gen_n      => "Generator_n_sched",
         :gen_pmax   => "Generator_pmax_sched",
         :gen_inflow => "Generator_inflow_sched",
-        :line_tmax  => "Line_tmax_sched",
-        :line_tmin  => "Line_tmin_sched",
+        :line_fwcap => "Line_fwcap_sched",
+        :line_rvcap => "Line_rvcap_sched",
     )
 
 function PISPwritedataCSV(input::Union{PISPtimeStatic, PISPtimeVarying}, path::AbstractString)

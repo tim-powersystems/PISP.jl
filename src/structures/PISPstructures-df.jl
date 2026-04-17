@@ -38,8 +38,8 @@ mutable struct PISPtimeVarying
     gen_n::DataFrame
     gen_pmax::DataFrame
     gen_inflow::DataFrame
-    line_tmax::DataFrame
-    line_tmin::DataFrame
+    line_fwcap::DataFrame
+    line_rvcap::DataFrame
     der_pred::DataFrame
 
     # Default constructor
@@ -53,11 +53,11 @@ mutable struct PISPtimeVarying
         gen_n      = PISP.schema_to_dataframe(PISP.MOD_GEN_N)
         gen_pmax   = PISP.schema_to_dataframe(PISP.MOD_GEN_PMAX)
         gen_inflow = PISP.schema_to_dataframe(PISP.MOD_GEN_INFLOW)
-        line_tmax  = PISP.schema_to_dataframe(PISP.MOD_LINE_TMAX)
-        line_tmin  = PISP.schema_to_dataframe(PISP.MOD_LINE_TMIN)
+        line_fwcap = PISP.schema_to_dataframe(PISP.MOD_LINE_FWCAP)
+        line_rvcap = PISP.schema_to_dataframe(PISP.MOD_LINE_RVCAP)
         der_pred   = PISP.schema_to_dataframe(PISP.MOD_DER_PRED_MAX)
 
         new(dem_load, ess_emax, ess_lmax, ess_n, ess_pmax, ess_inflow,
-            gen_n, gen_pmax, gen_inflow, line_tmax, line_tmin, der_pred)
+            gen_n, gen_pmax, gen_inflow, line_fwcap, line_rvcap, der_pred)
     end
 end

@@ -80,10 +80,10 @@ Below, an overview of each of the databases the parser produces is given.
 >   - `pmax`: Maximum generator output (MW).
 > - Generator_n_sched: `value` n (p.u.) starting at a given `date`. Match with column `n` from Generator
 >   - `n`: Maximum number of online units
-> - Line_tmax_sched: `value` tmax (MW) starting at a given `date`. Match with column `tmax` from Line
->   - `tmax`: Maximum line forward rating (MW)
-> - Line_tmin_sched: `value` tmin (MW) starting at a given `date`. Match with column `tmin` from Line
->   - `tmin`: Maximum line reverse rating (MW)
+> - Line_fwcap_sched: `value` fwcap (MW) starting at a given `date`. Match with column `fwcap` from Line
+>   - `fwcap`: Maximum line forward rating (MW)
+> - Line_rvcap_sched: `value` rvcap (MW) starting at a given `date`. Match with column `rvcap` from Line
+>   - `rvcap`: Maximum line reverse rating (MW)
 
 
 ## Relevant calculations
@@ -101,8 +101,8 @@ Below, an overview of each of the databases the parser produces is given.
 >   - Minimum state of charge = `emin` (%) * `emax` (MW)
 >   - Initial state of charge in $t=1$ = `eini` (%) * `emax` (MW)
 > - **Line**: 
->   - Maximum forward capacity output = `tmax` * `n`
->   - Maximum reverse capacity output = `tmin` * `n`
+>   - Maximum forward capacity output = `fwcap` * `n`
+>   - Maximum reverse capacity output = `rvcap` * `n`
 
 ## Time-static parameters in each database
 
@@ -212,8 +212,8 @@ Below, an overview of each of the databases the parser produces is given.
 | `id_bus_to`       | Bus the line ends (match with `id_bus` from **Bus** table) | 
 | `investment`      | Investment flag (1:investment; 0:non-investment) | 
 | `active`      | Active flag (1:active; 0:inactive) | 
-| `tmin`      | Maximum reverse capacity bus_a $\rightarrow$ bus_b (MW)| 
-| `tmax`      | Maximum forward capacity bus_b $\rightarrow$ bus_a (MW)| 
+| `rvcap`     | Maximum reverse capacity bus_a $\rightarrow$ bus_b (MW)| 
+| `fwcap`     | Maximum forward capacity bus_b $\rightarrow$ bus_a (MW)| 
 | `fullout`       | Unplanned outage rate - single credible contingency (% of time in decimal form)| 
 | `mttrfull`       | Mean time to repair - single credible contingency (hr) | 
 | `n`      | Maximum number of units online (p.u.)| 
