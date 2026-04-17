@@ -93,8 +93,8 @@ function line_table(ts::PISPtimeStatic, tv::PISPtimeVarying, ispdata24::String)
                 active      = true,
                 r           = 0.01,
                 x           = 0.1,
-                tmin        = Results[a, :rev_winter],
-                tmax        = Results[a, :fwd_winter],
+                rvcap       = Results[a, :rev_winter],
+                fwcap       = Results[a, :fwd_winter],
                 fullout     = haskey(RELIAMAP, alias) ? RELIAMAP[alias][3] : 0, # reliability values for interconnectors that have data available
                 mttrfull    = haskey(RELIAMAP, alias) ? RELIAMAP[alias][5] : 1, 
                 voltage     = 220.0,
@@ -125,8 +125,8 @@ function line_table(ts::PISPtimeStatic, tv::PISPtimeVarying, ispdata24::String)
         active      = 1,
         r           = 0.01,
         x           = 0.1,
-        tmin        = 800,
-        tmax        = 800,
+        rvcap       = 800,
+        fwcap       = 800,
         fullout     = 0, # reliability values for interconnectors that have data available
         mttrfull    = 1, 
         voltage     = 220.0,
@@ -152,14 +152,14 @@ function line_table(ts::PISPtimeStatic, tv::PISPtimeVarying, ispdata24::String)
 
     # Project EnergyConnect Stage 1: 150MW in 2024
     for s in 1:3
-        insert_line_schedule!(tv.line_tmax, 15, s, DateTime(2024, 7, 1), 150)
-        insert_line_schedule!(tv.line_tmin, 15, s, DateTime(2024, 7, 1), 150)
+        insert_line_schedule!(tv.line_fwcap, 15, s, DateTime(2024, 7, 1), 150)
+        insert_line_schedule!(tv.line_rvcap, 15, s, DateTime(2024, 7, 1), 150)
     end
 
     # Stage 2
     for s in 1:3
-        insert_line_schedule!(tv.line_tmax, 15, s, DateTime(2026, 7, 1), 800)
-        insert_line_schedule!(tv.line_tmin, 15, s, DateTime(2026, 7, 1), 800)
+        insert_line_schedule!(tv.line_fwcap, 15, s, DateTime(2026, 7, 1), 800)
+        insert_line_schedule!(tv.line_rvcap, 15, s, DateTime(2026, 7, 1), 800)
     end
     return Results
 end
@@ -174,7 +174,7 @@ extra transition row when a window straddles the boundary.
 
 # Arguments
 - `tc::PISPtimeConfig`: Supplies start/end timestamps for each problem block.
-- `tv::PISPtimeVarying`: Target schedule tables (`line_tmax`, `line_tmin`).
+- `tv::PISPtimeVarying`: Target schedule tables (`line_fwcap`, `line_rvcap`).
 - `TXdata::DataFrame`: Raw ratings from `line_table` indexed by line.
 """
 function line_sched_table(tc::PISPtimeConfig, tv::PISPtimeVarying, TXdata::DataFrame)
@@ -182,8 +182,8 @@ function line_sched_table(tc::PISPtimeConfig, tv::PISPtimeVarying, TXdata::DataF
     smonths = [10,11,12,1,2,3]  # Summer months
     probs   = tc.problem        # Call problem table 
 
-    txd_max = maximum(tv.line_tmax.id) + 1
-    txd_min = maximum(tv.line_tmin.id) + 1
+    txd_max = maximum(tv.line_fwcap.id) + 1
+    txd_min = maximum(tv.line_rvcap.id) + 1
     
     for txid in 1:nrow(TXdata)
         for p in 1:nrow(probs)
@@ -197,11 +197,11 @@ function line_sched_table(tc::PISPtimeConfig, tv::PISPtimeVarying, TXdata::DataF
             me = Dates.month(dend)          # End month of a week
 
             if ms in wmonths                # If starting month is in winter months
-                push!(tv.line_tmax, (id=txd_max, id_lin=txid, scenario=scid, date=DateTime(dstart), value=TXdata[txid,8]))
-                push!(tv.line_tmin, (id=txd_min, id_lin=txid, scenario=scid, date=DateTime(dstart), value=TXdata[txid,11]))
+                push!(tv.line_fwcap, (id=txd_max, id_lin=txid, scenario=scid, date=DateTime(dstart), value=TXdata[txid,8]))
+                push!(tv.line_rvcap, (id=txd_min, id_lin=txid, scenario=scid, date=DateTime(dstart), value=TXdata[txid,11]))
             else
-                push!(tv.line_tmax, (id=txd_max, id_lin=txid, scenario=scid, date=DateTime(dstart), value=TXdata[txid,7]))
-                push!(tv.line_tmin, (id=txd_min, id_lin=txid, scenario=scid, date=DateTime(dstart), value=TXdata[txid,10]))
+                push!(tv.line_fwcap, (id=txd_max, id_lin=txid, scenario=scid, date=DateTime(dstart), value=TXdata[txid,7]))
+                push!(tv.line_rvcap, (id=txd_min, id_lin=txid, scenario=scid, date=DateTime(dstart), value=TXdata[txid,10]))
             end
             txd_max += 1
             txd_min += 1
@@ -209,11 +209,11 @@ function line_sched_table(tc::PISPtimeConfig, tv::PISPtimeVarying, TXdata::DataF
             if (ms in wmonths && me in smonths) || (ms in smonths && me in wmonths)
                 # @warn "Problem start month is in winter and end month is in summer, check written data."
                 if me in wmonths
-                    push!(tv.line_tmax, (id=txd_max, id_lin=txid, scenario=scid, date=DateTime(ys,me,1), value=TXdata[txid,8]))
-                    push!(tv.line_tmin, (id=txd_min, id_lin=txid, scenario=scid, date=DateTime(ys,me,1), value=TXdata[txid,11]))
+                    push!(tv.line_fwcap, (id=txd_max, id_lin=txid, scenario=scid, date=DateTime(ys,me,1), value=TXdata[txid,8]))
+                    push!(tv.line_rvcap, (id=txd_min, id_lin=txid, scenario=scid, date=DateTime(ys,me,1), value=TXdata[txid,11]))
                 else
-                    push!(tv.line_tmax, (id=txd_max, id_lin=txid, scenario=scid, date=DateTime(ys,me,1), value=TXdata[txid,7]))
-                    push!(tv.line_tmin, (id=txd_min, id_lin=txid, scenario=scid, date=DateTime(ys,me,1), value=TXdata[txid,10]))
+                    push!(tv.line_fwcap, (id=txd_max, id_lin=txid, scenario=scid, date=DateTime(ys,me,1), value=TXdata[txid,7]))
+                    push!(tv.line_rvcap, (id=txd_min, id_lin=txid, scenario=scid, date=DateTime(ys,me,1), value=TXdata[txid,10]))
                 end
                 txd_max += 1
                 txd_min += 1
